@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="id" data-tema="gelap">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Penghitung orang</title>
+<script>
+  /* Pasang tema tersimpan sebelum halaman digambar, supaya tidak berkedip */
+  try {
+    var temaTersimpan = localStorage.getItem("tema");
+    if (temaTersimpan === "terang" || temaTersimpan === "gelap") {
+      document.documentElement.dataset.tema = temaTersimpan;
+    }
+  } catch (e) {}
+</script>
+<style>
+  :root {
+    --fon: #101114;
+    --masukan: #0b0c0e;
+    --garis: #272a30;
+    --garis-kuat: #353941;
+    --teks: #e9eaec;
+    --redup: #9298a2;
+    --aksen: #6ea8fe;
+    --ok: #3fb27f;
+    --waspada: #e2a43c;
+    --bahaya: #ee6a60;
+    --isi: var(--aksen);
+    --judul: "Bahnschrift", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+    --badan: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  :root[data-tema="terang"] {
+    --fon: #f6f7f8;
+    --masukan: #ffffff;
+    --garis: #dcdfe4;
+    --garis-kuat: #c3c8d0;
+    --teks: #16181c;
+    --redup: #5d6572;
+    --aksen: #2f6fdb;
+    --ok: #1d8a5a;
+    --waspada: #b06e0a;
+    --bahaya: #c8372d;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--fon);
+    color: var(--teks);
+    font: 14px/1.5 var(--badan);
+  }
+
+  .halaman {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 28px 24px 56px;
+  }
+
+  /* Kepala */
+  .kepala {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--garis);
+  }
+  h1 {
+    margin: 0;
+    font: 600 20px/1.25 var(--judul);
+  }
+  .redup { color: var(--redup); }
+  .kepala p { margin: 2px 0 0; }
+
+  /* Tata letak: video di kiri, angka dan pengaturan di kanan */
+  .tata {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-areas: "video hero" "video atur";
+    column-gap: 44px;
+    align-items: start;
+  }
+  .hero  { grid-area: hero; padding-bottom: 24px; }
+  .video { grid-area: video; position: sticky; top: 24px; }
+  .atur  { grid-area: atur; }
+
+  @media (max-width: 880px) {
+    .halaman { padding: 20px 16px 40px; }
+    .tata {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "hero" "video" "atur";
+      row-gap: 24px;
+    }
+    .video { position: static; }
+  }
+
+  /* Video */
+  .bingkai {
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border: 1px solid var(--garis);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .bingkai img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .kamera {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0;
+    color: var(--redup);
+    font-size: 13px;
+  }
+  .titik {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--redup);
+  }
+  .titik.ok { background: var(--ok); }
+  .titik.menunggu { background: var(--waspada); }
+  .titik.gagal { background: var(--bahaya); }
+
+  /* Jumlah di dalam ruangan */
+  .hero[data-state="ok"]   { --isi: var(--aksen); }
+  .hero[data-state="warn"] { --isi: var(--waspada); }
+  .hero[data-state="bad"]  { --isi: var(--bahaya); }
+
+  .angka-baris {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0;
+  }
+  .angka {
+    font: 600 76px/1 var(--judul);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero[data-state="bad"] .angka { color: var(--bahaya); }
+  .dari {
+    font-size: 16px;
+    color: var(--redup);
+  }
+
+  .slot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 18px 0 12px;
+  }
+  .slot span {
+    width: 12px;
+    height: 22px;
+    border: 1px solid var(--garis-kuat);
+    border-radius: 2px;
+  }
+  .slot span.isi {
+    background: var(--isi);
+    border-color: var(--isi);
+  }
+  .batang {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--garis);
+  }
+  .batang div {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--isi);
+  }
+  .status { margin: 0; min-height: 21px; }
+  .hero[data-state="warn"] .status { color: var(--waspada); }
+  .hero[data-state="bad"]  .status { color: var(--bahaya); }
+  .hero[data-state="kosong"] .status { color: var(--redup); }
+
+  .lintas {
+    display: flex;
+    gap: 40px;
+    margin: 22px 0 0;
+  }
+  .lintas div { margin: 0; }
+  .lintas dt {
+    font-size: 13px;
+    color: var(--redup);
+  }
+  .lintas dd {
+    margin: 0;
+    font: 600 26px/1.2 var(--judul);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Pengaturan */
+  .atur section {
+    padding: 22px 0;
+    border-top: 1px solid var(--garis);
+  }
+  h2 {
+    margin: 0 0 14px;
+    font: 600 15px/1.3 var(--judul);
+  }
+  label, legend {
+    display: block;
+    margin: 14px 0 6px;
+    padding: 0;
+    font-size: 13px;
+    color: var(--redup);
+  }
+  form > label:first-child, fieldset > legend { margin-top: 0; }
+  fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--masukan);
+    color: var(--teks);
+    border: 1px solid var(--garis-kuat);
+    border-radius: 6px;
+    font: inherit;
+  }
+  input::placeholder { color: var(--redup); opacity: .7; }
+
+  .tombol {
+    flex: none;
+    white-space: nowrap;
+    height: 36px;
+    padding: 0 14px;
+    background: transparent;
+    color: var(--teks);
+    border: 1px solid var(--garis-kuat);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .tombol:hover { background: color-mix(in srgb, var(--teks) 8%, transparent); }
+  .tombol.utama {
+    background: var(--teks);
+    color: var(--fon);
+    border-color: var(--teks);
+  }
+  .tombol.utama:hover { background: color-mix(in srgb, var(--teks) 85%, var(--fon)); }
+  .tombol.bahaya {
+    color: var(--bahaya);
+    border-color: color-mix(in srgb, var(--bahaya) 45%, transparent);
+  }
+  .tombol.bahaya:hover { background: color-mix(in srgb, var(--bahaya) 12%, transparent); }
+  .tombol.kecil { height: 32px; padding: 0 12px; font-size: 13px; }
+
+  :is(input, select, button, .segmen input + label):focus-visible,
+  .segmen input:focus-visible + label {
+    outline: 2px solid var(--aksen);
+    outline-offset: 2px;
+  }
+
+  .baris { display: flex; gap: 8px; }
+  .baris > input { flex: 1; min-width: 0; }
+  form > .tombol, .atur section > .tombol { margin-top: 14px; }
+  .baris + .tombol { margin-top: 8px; }
+
+  /* Pilihan arah: dua tombol radio yang tampil seperti satu kontrol */
+  .segmen {
+    position: relative;
+    display: flex;
+    border: 1px solid var(--garis-kuat);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .segmen input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+  .segmen label {
+    flex: 1;
+    margin: 0;
+    padding: 7px 8px;
+    text-align: center;
+    color: var(--redup);
+    cursor: pointer;
+  }
+  .segmen input + label { border-left: 1px solid var(--garis-kuat); }
+  .segmen input:first-child + label { border-left: 0; }
+  .segmen input:checked + label {
+    background: var(--teks);
+    color: var(--fon);
+  }
+  .segmen input:focus-visible + label { outline-offset: -3px; }
+
+  input[type="range"] {
+    width: 100%;
+    margin: 2px 0 0;
+    accent-color: var(--aksen);
+  }
+  output {
+    margin-left: 6px;
+    color: var(--teks);
+    font-variant-numeric: tabular-nums;
+  }
+  .catatan { margin: 10px 0 0; font-size: 13px; color: var(--redup); }
+
+  .galat {
+    min-height: 21px;
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--bahaya);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tombol { transition: background-color .12s; }
+  }
+
+  /* ----- Tambahan untuk versi lokal ----- */
+  .bingkai { position: relative; }
+  .bingkai video, .bingkai canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  .bingkai canvas { pointer-events: none; }
+  .mulai {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    height: 44px;
+    padding: 0 24px;
+  }
+  .bingkai.jalan .mulai { display: none; }
+  .tombol:disabled { opacity: .55; cursor: default; }
+  #statistik { margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="halaman">
+
+  <header class="kepala">
+    <div>
+      <h1>Penghitung orang</h1>
+      <p class="redup">Berjalan sepenuhnya di perangkat ini. Video tidak dikirim ke mana pun.</p>
+    </div>
+    <button type="button" class="tombol kecil" id="tombolTema">Tema terang</button>
+  </header>
+
+  <main class="tata">
+
+    <section class="hero" id="hero" data-state="kosong" aria-label="Jumlah orang di dalam ruangan">
+      <p class="angka-baris">
+        <span class="angka" id="diDalam" aria-live="polite">0</span>
+        <span class="dari" id="dariTeks">orang di dalam ruangan</span>
+      </p>
+      <div class="slot" id="slot" role="img" aria-label="" hidden></div>
+      <p class="status" id="statusTeks"></p>
+      <dl class="lintas">
+        <div><dt>Masuk</dt><dd id="masuk">0</dd></div>
+        <div><dt>Keluar</dt><dd id="keluar">0</dd></div>
+      </dl>
+    </section>
+
+    <section class="video" aria-label="Video kamera">
+      <div class="bingkai" id="bingkai">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="kanvas"></canvas>
+        <button type="button" class="tombol utama mulai" id="mulaiBesar">Mulai kamera</button>
+      </div>
+      <p class="kamera">
+        <span class="titik menunggu" id="titikKamera"></span>
+        <span id="statusKamera">Kamera belum dimulai.</span>
+      </p>
+      <p class="kamera" id="statistik"></p>
+    </section>
+
+    <div class="atur">
+
+      <section>
+        <h2>Kamera</h2>
+        <form id="formKamera">
+          <label for="pilihKamera">Kamera yang dipakai</label>
+          <select id="pilihKamera">
+            <option value="environment">Kamera belakang</option>
+            <option value="user">Kamera depan</option>
+          </select>
+          <div class="baris" style="margin-top:14px">
+            <button type="submit" class="tombol utama" id="tombolKamera">Mulai kamera</button>
+          </div>
+        </form>
+        <p class="catatan">Analisis berjalan di perangkat ini. Pertama kali dibuka, model (sekitar 7 MB) diunduh dulu dan butuh internet.</p>
+      </section>
+
+      <section>
+        <h2>Kapasitas</h2>
+        <form id="formKapasitas">
+          <label for="kapasitas">Jumlah maksimal orang di ruangan</label>
+          <div class="baris">
+            <input type="number" id="kapasitas" min="1" max="10000" inputmode="numeric" placeholder="Contoh: 20">
+            <button type="submit" class="tombol utama">Simpan</button>
+          </div>
+        </form>
+      </section>
+
+      <section>
+        <h2>Garis hitung</h2>
+        <fieldset>
+          <legend>Arah orang lewat</legend>
+          <div class="segmen">
+            <input type="radio" name="orientasi" id="oVertikal" value="vertikal">
+            <label for="oVertikal">Kiri–kanan</label>
+            <input type="radio" name="orientasi" id="oHorizontal" value="horizontal">
+            <label for="oHorizontal">Atas–bawah</label>
+          </div>
+        </fieldset>
+        <label for="posisi">Posisi garis<output id="posisiTeks" for="posisi">50%</output></label>
+        <input type="range" id="posisi" min="10" max="90" step="1" value="50">
+        <p class="catatan" id="arahTeks"></p>
+        <button type="button" class="tombol" id="tukarArah">Tukar arah masuk dan keluar</button>
+      </section>
+
+      <section>
+        <h2>Deteksi</h2>
+        <label for="ambang">Ambang keyakinan<output id="ambangTeks" for="ambang">40%</output></label>
+        <input type="range" id="ambang" min="20" max="80" step="5" value="40">
+        <p class="catatan">Turunkan kalau ada orang yang tidak terdeteksi. Naikkan kalau benda lain dikira orang.</p>
+      </section>
+
+      <section>
+        <h2>Koreksi dan catatan</h2>
+        <div class="baris">
+          <button type="button" class="tombol" id="kurangSatu">Kurangi 1 orang</button>
+          <button type="button" class="tombol" id="tambahSatu">Tambah 1 orang</button>
+        </div>
+        <div class="baris" style="margin-top:8px">
+          <button type="button" class="tombol" id="unduhCatatan">Unduh catatan (CSV)</button>
+        </div>
+        <button type="button" class="tombol bahaya" id="resetSemua">Atur ulang semua hitungan</button>
+        <p class="galat" id="pesan" role="status"></p>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<noscript><p style="padding:16px">Halaman ini membutuhkan JavaScript.</p></noscript>
+
+<script id="inti">
+/* ===== Inti: pelacak dan penghitung. Tanpa DOM, jadi bisa diuji terpisah. ===== */
+(function (akar) {
+  "use strict";
+
+  function iou(a, b) {
+    const x1 = Math.max(a.x1, b.x1), y1 = Math.max(a.y1, b.y1);
+    const x2 = Math.min(a.x2, b.x2), y2 = Math.min(a.y2, b.y2);
+    const irisan = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    const luasA = (a.x2 - a.x1) * (a.y2 - a.y1);
+    const luasB = (b.x2 - b.x1) * (b.y2 - b.y1);
+    const gabungan = luasA + luasB - irisan;
+    return gabungan > 0 ? irisan / gabungan : 0;
+  }
+
+  /* Pelacak sederhana: mencocokkan kotak antar-gambar supaya tiap orang punya nomor tetap.
+     Memakai prediksi gerak (kecepatan terakhir), IoU, lalu jarak tengah sebagai cadangan
+     kalau orang berpindah jauh di antara dua gambar (FPS rendah). */
+  class Pelacak {
+    constructor(opsi = {}) {
+      this.bufferMs = opsi.bufferMs ?? 1200;      // orang yang hilang diingat selama ini
+      this.iouMin = opsi.iouMin ?? 0.15;
+      this.jarakMaks = opsi.jarakMaks ?? 0.75;    // batas jarak tengah, dalam ukuran kotak
+      this.prediksiMaksMs = opsi.prediksiMaksMs ?? 500;
+      this.reset();
+    }
+
+    reset() {
+      this.tracks = [];
+      this.idBerikut = 1;
+    }
+
+    idHidup() {
+      return new Set(this.tracks.map((t) => t.id));
+    }
+
+    _prediksi(tr, tMs) {
+      const dt = Math.min(Math.max(tMs - tr.t, 0), this.prediksiMaksMs) / 1000;
+      const dx = tr.vx * dt, dy = tr.vy * dt;
+      const k = tr.kotak;
+      return { x1: k.x1 + dx, y1: k.y1 + dy, x2: k.x2 + dx, y2: k.y2 + dy };
+    }
+
+    _baru(d, tMs) {
+      const tr = {
+        id: this.idBerikut++,
+        kotak: { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2 },
+        vx: 0, vy: 0, t: tMs,
+      };
+      this.tracks.push(tr);
+      return tr;
+    }
+
+    _perbarui(tr, d, tMs) {
+      const dt = (tMs - tr.t) / 1000;
+      if (dt > 0.001) {
+        const cxLama = (tr.kotak.x1 + tr.kotak.x2) / 2, cyLama = (tr.kotak.y1 + tr.kotak.y2) / 2;
+        const cxBaru = (d.x1 + d.x2) / 2, cyBaru = (d.y1 + d.y2) / 2;
+        // rata-rata dengan kecepatan sebelumnya supaya tidak melonjak
+        tr.vx = 0.5 * ((cxBaru - cxLama) / dt) + 0.5 * tr.vx;
+        tr.vy = 0.5 * ((cyBaru - cyLama) / dt) + 0.5 * tr.vy;
+      }
+      tr.kotak = { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2 };
+      tr.t = tMs;
+    }
+
+    /* deteksi: [{x1, y1, x2, y2}]. Mengembalikan orang yang terlihat sekarang:
+       [{id, x1, y1, x2, y2, vx, vy}] */
+    perbarui(deteksi, tMs) {
+      const prediksi = this.tracks.map((tr) => this._prediksi(tr, tMs));
+      const pasangan = [];
+      deteksi.forEach((d, j) => {
+        prediksi.forEach((p, i) => {
+          const nilai = iou(p, d);
+          if (nilai >= this.iouMin) {
+            pasangan.push({ i, j, skor: 1 + nilai });   // cocok kuat: selalu di atas cadangan jarak
+          } else {
+            const dx = (p.x1 + p.x2 - d.x1 - d.x2) / 2, dy = (p.y1 + p.y2 - d.y1 - d.y2) / 2;
+            const ukuran = Math.max(p.x2 - p.x1, p.y2 - p.y1) || 1;
+            const jarak = Math.hypot(dx, dy) / ukuran;
+            if (jarak < this.jarakMaks) pasangan.push({ i, j, skor: 1 - jarak / this.jarakMaks });
+          }
+        });
+      });
+      pasangan.sort((a, b) => b.skor - a.skor);
+
+      const trakDipakai = new Set(), detDipakai = new Set(), terlihat = [];
+      for (const { i, j } of pasangan) {
+        if (trakDipakai.has(i) || detDipakai.has(j)) continue;
+        trakDipakai.add(i);
+        detDipakai.add(j);
+        this._perbarui(this.tracks[i], deteksi[j], tMs);
+        terlihat.push(this.tracks[i]);
+      }
+      deteksi.forEach((d, j) => {
+        if (!detDipakai.has(j)) terlihat.push(this._baru(d, tMs));
+      });
+
+      this.tracks = this.tracks.filter((tr) => tMs - tr.t <= this.bufferMs);
+      return terlihat.map((tr) => ({ id: tr.id, ...tr.kotak, vx: tr.vx, vy: tr.vy }));
+    }
+  }
+
+  /* Titik pada badan yang dibandingkan dengan garis hitung:
+     garis tegak -> tengah kotak; garis mendatar -> sisi bawah kotak (kaki). */
+  function titikAcuan(k, vertikal) {
+    return vertikal ? (k.x1 + k.x2) / 2 : k.y2;
+  }
+
+  /* Penghitung: sama dengan periksa_lintasan di versi Python.
+     Orang dihitung saat titiknya berpindah sisi garis dan sudah melewati zona netral (margin).
+     Jeda (cooldown) mencegah satu orang dihitung dua kali karena getaran deteksi. */
+  class Penghitung {
+    constructor(opsi = {}) {
+      this.cooldownMs = opsi.cooldownMs ?? 350;
+      this.sisiOrang = new Map();
+      this.terakhirHitung = new Map();
+    }
+
+    reset() {
+      this.sisiOrang.clear();
+      this.terakhirHitung.clear();
+    }
+
+    lupakan(idHidup) {
+      for (const id of [...this.sisiOrang.keys()]) {
+        if (!idHidup.has(id)) {
+          this.sisiOrang.delete(id);
+          this.terakhirHitung.delete(id);
+        }
+      }
+    }
+
+    /* Mengembalikan "masuk", "keluar", atau null. */
+    periksa(id, titik, garis, margin, masukKeSisi, tMs) {
+      const selisih = titik - garis;
+      if (Math.abs(selisih) < margin) return null;
+
+      const sisi = selisih > 0 ? 1 : -1;
+      const sebelumnya = this.sisiOrang.get(id);
+      if (sebelumnya === undefined) {
+        this.sisiOrang.set(id, sisi);   // pertama kali terlihat: catat sisinya, jangan hitung
+        return null;
+      }
+      if (sisi === sebelumnya) return null;
+
+      const terakhir = this.terakhirHitung.has(id) ? this.terakhirHitung.get(id) : -Infinity;
+      this.sisiOrang.set(id, sisi);
+      if (tMs - terakhir < this.cooldownMs) return null;
+
+      this.terakhirHitung.set(id, tMs);
+      return sisi === masukKeSisi ? "masuk" : "keluar";
+    }
+  }
+
+  akar.Inti = { iou, Pelacak, Penghitung, titikAcuan };
+  if (typeof module !== "undefined" && module.exports) module.exports = akar.Inti;
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+
+<script type="module" id="aplikasi">
+const { Pelacak, Penghitung, titikAcuan } = window.Inti;
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Pengaturan ---------- */
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite";
+const BASIS_MEDIAPIPE = [
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34",
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision",   // cadangan kalau versi di atas tidak ada
+];
+const MARGIN_PECAHAN = 0.031;   // zona netral di sekitar garis, pecahan dari lebar/tinggi gambar
+const KUNCI_SIMPAN = "hitungLokal.v1";
+const MAKS_CATATAN = 500;
+
+/* ---------- Keadaan, disimpan di perangkat ini ---------- */
+const S = {
+  kapasitas: null, orientasi: "vertikal", posisi: 50, masukKeSisi: 1,
+  masuk: 0, keluar: 0, diDalam: 0, kamera: "environment", ambang: 40, catatan: [],
+};
+try { Object.assign(S, JSON.parse(localStorage.getItem(KUNCI_SIMPAN) || "{}")); } catch (e) {}
+
+function bersihkanKeadaan() {
+  const bil = (x, min, max, awal) => (Number.isFinite(Number(x)) ? Math.min(max, Math.max(min, Math.round(Number(x)))) : awal);
+  S.kapasitas = S.kapasitas == null ? null : bil(S.kapasitas, 1, 10000, null);
+  S.orientasi = S.orientasi === "horizontal" ? "horizontal" : "vertikal";
+  S.posisi = bil(S.posisi, 10, 90, 50);
+  S.masukKeSisi = S.masukKeSisi === -1 ? -1 : 1;
+  S.masuk = bil(S.masuk, 0, 1e9, 0);
+  S.keluar = bil(S.keluar, 0, 1e9, 0);
+  S.diDalam = bil(S.diDalam, 0, 1e9, 0);
+  S.kamera = S.kamera === "user" ? "user" : "environment";
+  S.ambang = bil(S.ambang, 20, 80, 40);
+  S.catatan = Array.isArray(S.catatan) ? S.catatan.slice(-MAKS_CATATAN) : [];
+}
+bersihkanKeadaan();
+
+function simpan() {
+  try { localStorage.setItem(KUNCI_SIMPAN, JSON.stringify(S)); } catch (e) {}
+}
+
+let detector = null;
+let stream = null;
+let berjalan = false;
+let sedangMemulai = false;
+let rafId = 0;
+let wakeLock = null;
+let waktuVideoTerakhir = -1;
+const pelacak = new Pelacak();
+const penghitung = new Penghitung();
+
+const video = $("video");
+const kanvas = $("kanvas");
+const ctx = kanvas.getContext("2d");
+const bingkai = $("bingkai");
+const pesan = $("pesan");
+
+function setTeks(elemen, nilai) {
+  const teks = String(nilai);
+  if (elemen.textContent !== teks) elemen.textContent = teks;
+}
+
+/* ---------- Tema ---------- */
+function terapkanTema(tema) {
+  document.documentElement.dataset.tema = tema;
+  $("tombolTema").textContent = tema === "terang" ? "Tema gelap" : "Tema terang";
+}
+terapkanTema(document.documentElement.dataset.tema === "terang" ? "terang" : "gelap");
+$("tombolTema").addEventListener("click", () => {
+  const baru = document.documentElement.dataset.tema === "terang" ? "gelap" : "terang";
+  terapkanTema(baru);
+  try { localStorage.setItem("tema", baru); } catch (e) {}
+});
+
+/* ---------- Jumlah di dalam: deretan tempat ---------- */
+let kunciSlot = "";
+function gambarSlot(dalam, kapasitas) {
+  const wadah = $("slot");
+  if (!kapasitas) { wadah.hidden = true; kunciSlot = ""; return; }
+  wadah.hidden = false;
+  const kunci = kapasitas + ":" + dalam;
+  if (kunci === kunciSlot) return;
+  kunciSlot = kunci;
+  wadah.replaceChildren();
+  wadah.setAttribute("aria-label", Math.min(dalam, kapasitas) + " dari " + kapasitas + " tempat terisi");
+  if (kapasitas <= 40) {
+    for (let i = 0; i < kapasitas; i++) {
+      const tempat = document.createElement("span");
+      if (i < dalam) tempat.className = "isi";
+      wadah.appendChild(tempat);
+    }
+  } else {
+    const batang = document.createElement("div");
+    batang.className = "batang";
+    const isi = document.createElement("div");
+    isi.style.width = Math.min(100, (dalam / kapasitas) * 100) + "%";
+    batang.appendChild(isi);
+    wadah.appendChild(batang);
+  }
+}
+
+function perbaruiHero() {
+  const dalam = S.diDalam, kap = S.kapasitas;
+  setTeks($("diDalam"), dalam);
+  setTeks($("masuk"), S.masuk);
+  setTeks($("keluar"), S.keluar);
+
+  let state = "kosong";
+  let teks = "Kapasitas belum diatur. Isi kapasitas di bawah untuk melihat sisa tempat.";
+  let dari = "orang di dalam ruangan";
+  if (kap) {
+    dari = "dari " + kap + " orang";
+    if (dalam > kap) { state = "bad"; teks = "Melebihi kapasitas " + (dalam - kap) + " orang."; }
+    else if (dalam === kap) { state = "bad"; teks = "Ruangan penuh."; }
+    else { state = dalam / kap >= 0.8 ? "warn" : "ok"; teks = (kap - dalam) + " tempat tersisa."; }
+  }
+  $("hero").dataset.state = state;
+  setTeks($("dariTeks"), dari);
+  setTeks($("statusTeks"), teks);
+  gambarSlot(dalam, kap);
+}
+
+function kataSisi(orientasi, sisi) {
+  if (orientasi === "vertikal") return sisi === 1 ? "kanan" : "kiri";
+  return sisi === 1 ? "bawah" : "atas";
+}
+
+function perbaruiKontrol() {
+  const radio = document.querySelector('input[name="orientasi"][value="' + S.orientasi + '"]');
+  if (radio) radio.checked = true;
+  $("posisi").value = S.posisi;
+  setTeks($("posisiTeks"), S.posisi + "%");
+  $("ambang").value = S.ambang;
+  setTeks($("ambangTeks"), S.ambang + "%");
+  $("pilihKamera").value = S.kamera;
+  if (S.kapasitas) $("kapasitas").value = S.kapasitas;
+  setTeks($("arahTeks"), "Masuk dihitung saat orang menyeberang ke sisi " +
+    kataSisi(S.orientasi, S.masukKeSisi) + " garis.");
+}
+
+/* ---------- Status kamera ---------- */
+function setStatus(teks, kelas) {
+  setTeks($("statusKamera"), teks);
+  $("titikKamera").className = "titik " + (kelas || "menunggu");
+}
+
+function jelaskanGalat(e) {
+  const n = e && e.name;
+  if (n === "TidakAman") return "Kamera hanya bisa dipakai di halaman https://. Buka lewat alamat yang diawali https.";
+  if (n === "NotAllowedError" || n === "SecurityError") return "Izin kamera ditolak. Izinkan kamera untuk situs ini di pengaturan browser, lalu coba lagi.";
+  if (n === "NotFoundError" || n === "DevicesNotFoundError") return "Kamera tidak ditemukan di perangkat ini.";
+  if (n === "NotReadableError" || n === "TrackStartError") return "Kamera sedang dipakai aplikasi lain. Tutup aplikasi itu, lalu coba lagi.";
+  if (n === "ModelGagal") return "Model gagal dimuat. Periksa koneksi internet, lalu coba lagi. (rincian: " + e.message + ")";
+  return "Gagal memulai kamera (rincian: " + (n || "galat") + ": " + ((e && e.message) || "") + ")";
+}
+
+/* ---------- Model ---------- */
+async function muatModel() {
+  let galatTerakhir = null;
+  for (const basis of BASIS_MEDIAPIPE) {
+    try {
+      const modul = await import(basis + "/vision_bundle.mjs");
+      const vision = await modul.FilesetResolver.forVisionTasks(basis + "/wasm");
+      return await modul.ObjectDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+        runningMode: "VIDEO",
+        scoreThreshold: S.ambang / 100,
+        categoryAllowlist: ["person"],
+        maxResults: 20,
+      });
+    } catch (e) {
+      galatTerakhir = e;
+    }
+  }
+  const galat = new Error((galatTerakhir && galatTerakhir.message) || "tidak diketahui");
+  galat.name = "ModelGagal";
+  throw galat;
+}
+
+/* ---------- Kamera ---------- */
+async function ambilKamera() {
+  const media = navigator.mediaDevices;
+  try {
+    return await media.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: S.kamera }, width: { ideal: 640 }, height: { ideal: 480 } },
+    });
+  } catch (e) {
+    if (e && (e.name === "OverconstrainedError" || e.name === "ConstraintNotSatisfiedError")) {
+      return media.getUserMedia({ audio: false, video: true });
+    }
+    throw e;
+  }
+}
+
+async function kunciLayar() {
+  try {
+    if ("wakeLock" in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && berjalan) kunciLayar();
+});
+
+function aturTombol(sibuk) {
+  const teks = sibuk ? "Memulai..." : (berjalan ? "Hentikan kamera" : "Mulai kamera");
+  $("tombolKamera").textContent = teks;
+  $("tombolKamera").disabled = sibuk;
+  $("mulaiBesar").disabled = sibuk;
+  $("mulaiBesar").textContent = sibuk ? "Memulai..." : "Mulai kamera";
+  bingkai.classList.toggle("jalan", berjalan);
+}
+
+function hentikanKamera() {
+  berjalan = false;
+  cancelAnimationFrame(rafId);
+  if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+  video.srcObject = null;
+  ctx.clearRect(0, 0, kanvas.width, kanvas.height);
+  try { if (wakeLock) wakeLock.release(); } catch (e) {}
+  wakeLock = null;
+  aturTombol(false);
+}
+
+async function mulaiKamera() {
+  if (berjalan || sedangMemulai) return;
+  sedangMemulai = true;
+  aturTombol(true);
+  pesan.textContent = "";
+  try {
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const e = new Error("halaman tidak aman"); e.name = "TidakAman"; throw e;
+    }
+    if (!detector) {
+      setStatus("Memuat model... (pertama kali butuh internet)", "menunggu");
+      detector = await muatModel();
+    }
+    setStatus("Meminta izin kamera...", "menunggu");
+    stream = await ambilKamera();
+    video.srcObject = stream;
+    await new Promise((selesai) => {
+      if (video.readyState >= 1) selesai(); else video.onloadedmetadata = () => selesai();
+    });
+    try { await video.play(); } catch (e) {}
+
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (vw && vh) bingkai.style.aspectRatio = vw + " / " + vh;
+    pelacak.reset();
+    penghitung.reset();
+    waktuVideoTerakhir = -1;
+    berjalan = true;
+    kunciLayar();
+    setStatus("Kamera aktif (" + vw + "x" + vh + ")", "ok");
+    rafId = requestAnimationFrame(putaran);
+  } catch (e) {
+    hentikanKamera();
+    setStatus(jelaskanGalat(e), "gagal");
+  } finally {
+    sedangMemulai = false;
+    aturTombol(false);
+  }
+}
+
+/* ---------- Perulangan deteksi ---------- */
+let hitungFrame = 0, mulaiUkur = performance.now(), jumlahMs = 0;
+
+function putaran() {
+  if (!berjalan) return;
+  rafId = requestAnimationFrame(putaran);
+  if (video.readyState < 2 || video.currentTime === waktuVideoTerakhir) return;
+  waktuVideoTerakhir = video.currentTime;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return;
+
+  const t0 = performance.now();
+  let hasil;
+  try {
+    hasil = detector.detectForVideo(video, t0);
+  } catch (e) {
+    hentikanKamera();
+    setStatus("Analisis berhenti (rincian: " + ((e && e.message) || e) + ")", "gagal");
+    return;
+  }
+  jumlahMs += performance.now() - t0;
+  hitungFrame++;
+
+  const deteksi = [];
+  for (const d of hasil.detections || []) {
+    const kat = d.categories && d.categories[0];
+    const b = d.boundingBox;
+    if (!b || (kat && kat.categoryName !== "person")) continue;
+    deteksi.push({ x1: b.originX, y1: b.originY, x2: b.originX + b.width, y2: b.originY + b.height });
+  }
+
+  const tracks = pelacak.perbarui(deteksi, t0);
+  const vertikal = S.orientasi === "vertikal";
+  const garis = ((vertikal ? vw : vh) * S.posisi) / 100;
+  const marginPx = (vertikal ? vw : vh) * MARGIN_PECAHAN;
+
+  for (const tr of tracks) {
+    const kejadian = penghitung.periksa(tr.id, titikAcuan(tr, vertikal), garis, marginPx, S.masukKeSisi, t0);
+    if (kejadian) catat(kejadian, tr.id);
+  }
+  penghitung.lupakan(pelacak.idHidup());
+
+  gambar(tracks, vw, vh, garis, marginPx);
+
+  const selang = t0 - mulaiUkur;
+  if (selang >= 1000) {
+    setTeks($("statistik"), "AI " + (hitungFrame / (selang / 1000)).toFixed(1) + " FPS (" +
+      Math.round(jumlahMs / hitungFrame) + " ms per analisis)");
+    hitungFrame = 0; jumlahMs = 0; mulaiUkur = t0;
+  }
+}
+
+function catat(kejadian, id) {
+  if (kejadian === "masuk") { S.masuk++; S.diDalam++; }
+  else { S.keluar++; S.diDalam = Math.max(0, S.diDalam - 1); }
+  S.catatan.push({ waktu: new Date().toISOString(), kejadian, id });
+  if (S.catatan.length > MAKS_CATATAN) S.catatan.shift();
+  simpan();
+  perbaruiHero();
+}
+
+/* ---------- Menggambar di atas video ---------- */
+function teksBertepi(teks, x, y, skala, rata) {
+  ctx.textAlign = rata;
+  ctx.lineJoin = "round";   // tanpa duri runcing di huruf
+  ctx.lineWidth = 3 * skala;
+  ctx.strokeStyle = "#000";
+  ctx.strokeText(teks, x, y);
+  ctx.fillStyle = "#fff";
+  ctx.fillText(teks, x, y);
+}
+
+function gambar(tracks, vw, vh, garis, marginPx) {
+  if (kanvas.width !== vw || kanvas.height !== vh) { kanvas.width = vw; kanvas.height = vh; }
+  ctx.clearRect(0, 0, vw, vh);
+  const skala = Math.max(1, vw / 640);
+  const vertikal = S.orientasi === "vertikal";
+
+  // Pita zona netral di kiri-kanan garis
+  ctx.lineWidth = skala;
+  ctx.strokeStyle = "rgba(110, 150, 230, 0.6)";
+  ctx.beginPath();
+  for (const g of [garis - marginPx, garis + marginPx]) {
+    if (vertikal) { ctx.moveTo(g, 0); ctx.lineTo(g, vh); } else { ctx.moveTo(0, g); ctx.lineTo(vw, g); }
+  }
+  ctx.stroke();
+
+  // Garis hitung
+  ctx.lineWidth = 3 * skala;
+  ctx.strokeStyle = "#3d8bff";
+  ctx.beginPath();
+  if (vertikal) { ctx.moveTo(garis, 0); ctx.lineTo(garis, vh); } else { ctx.moveTo(0, garis); ctx.lineTo(vw, garis); }
+  ctx.stroke();
+
+  // Keterangan sisi MASUK dan KELUAR
+  ctx.font = "600 " + 14 * skala + "px system-ui, sans-serif";
+  const sisiPositif = S.masukKeSisi === 1 ? "MASUK" : "KELUAR";
+  const sisiNegatif = S.masukKeSisi === 1 ? "KELUAR" : "MASUK";
+  if (vertikal) {
+    teksBertepi(sisiPositif, garis + 8 * skala, 22 * skala, skala, "left");
+    teksBertepi(sisiNegatif, garis - 8 * skala, 22 * skala, skala, "right");
+  } else {
+    teksBertepi(sisiPositif, 8 * skala, garis + 22 * skala, skala, "left");
+    teksBertepi(sisiNegatif, 8 * skala, garis - 8 * skala, skala, "left");
+  }
+
+  // Kotak, nomor, dan titik acuan tiap orang
+  ctx.font = "500 " + 11 * skala + "px system-ui, sans-serif";
+  for (const tr of tracks) {
+    ctx.lineWidth = skala;
+    ctx.strokeStyle = "#5ac83c";
+    ctx.strokeRect(tr.x1, tr.y1, tr.x2 - tr.x1, tr.y2 - tr.y1);
+    teksBertepi("#" + tr.id, tr.x1, Math.max(12 * skala, tr.y1 - 4 * skala), skala * 0.8, "left");
+
+    const nilai = titikAcuan(tr, vertikal);
+    const px = (tr.x1 + tr.x2) / 2, py = vertikal ? (tr.y1 + tr.y2) / 2 : tr.y2;
+    const selisih = nilai - garis;
+    ctx.fillStyle = Math.abs(selisih) < marginPx ? "#a0a0a0" : (selisih > 0 ? "#ffdc00" : "#ff50c8");
+    ctx.beginPath();
+    ctx.arc(px, Math.min(py, vh - 3 * skala), 5 * skala, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = skala;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+  }
+}
+
+/* ---------- Kontrol di halaman ---------- */
+$("formKamera").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (berjalan) { hentikanKamera(); setStatus("Kamera dihentikan.", "menunggu"); }
+  else mulaiKamera();
+});
+$("mulaiBesar").addEventListener("click", mulaiKamera);
+
+$("pilihKamera").addEventListener("change", async () => {
+  S.kamera = $("pilihKamera").value;
+  simpan();
+  if (berjalan) { hentikanKamera(); await mulaiKamera(); }
+});
+
+$("formKapasitas").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const nilai = Number($("kapasitas").value);
+  if (!Number.isInteger(nilai) || nilai < 1 || nilai > 10000) {
+    pesan.textContent = "Kapasitas harus berupa angka bulat antara 1 dan 10000.";
+    return;
+  }
+  pesan.textContent = "";
+  S.kapasitas = nilai;
+  simpan();
+  perbaruiHero();
+  $("kapasitas").blur();
+});
+
+document.querySelectorAll('input[name="orientasi"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    if (!radio.checked) return;
+    S.orientasi = radio.value;
+    penghitung.reset();
+    simpan();
+    perbaruiKontrol();
+  });
+});
+
+$("posisi").addEventListener("input", () => {
+  S.posisi = Number($("posisi").value);
+  setTeks($("posisiTeks"), S.posisi + "%");
+});
+$("posisi").addEventListener("change", () => { penghitung.reset(); simpan(); });
+
+$("tukarArah").addEventListener("click", () => {
+  S.masukKeSisi *= -1;
+  penghitung.reset();
+  simpan();
+  perbaruiKontrol();
+});
+
+$("ambang").addEventListener("input", () => {
+  S.ambang = Number($("ambang").value);
+  setTeks($("ambangTeks"), S.ambang + "%");
+});
+$("ambang").addEventListener("change", async () => {
+  simpan();
+  try { if (detector) await detector.setOptions({ scoreThreshold: S.ambang / 100 }); } catch (e) {}
+});
+
+$("kurangSatu").addEventListener("click", () => { S.diDalam = Math.max(0, S.diDalam - 1); simpan(); perbaruiHero(); });
+$("tambahSatu").addEventListener("click", () => { S.diDalam++; simpan(); perbaruiHero(); });
+$("resetSemua").addEventListener("click", () => {
+  if (!confirm("Atur ulang jumlah masuk, keluar, dan di dalam ke 0?")) return;
+  S.masuk = 0; S.keluar = 0; S.diDalam = 0; S.catatan = [];
+  penghitung.reset();
+  simpan();
+  perbaruiHero();
+});
+
+$("unduhCatatan").addEventListener("click", () => {
+  if (!S.catatan.length) { pesan.textContent = "Belum ada catatan masuk atau keluar."; return; }
+  pesan.textContent = "";
+  const baris = ["waktu,kejadian,nomor_orang", ...S.catatan.map((c) => c.waktu + "," + c.kejadian + "," + c.id)];
+  const blob = new Blob(["\ufeff" + baris.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "catatan-hitung-orang.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+/* ---------- Mulai ---------- */
+perbaruiKontrol();
+perbaruiHero();
+aturTombol(false);
+if (!window.isSecureContext) {
+  setStatus("Halaman ini tidak aman. Kamera hanya bisa dipakai lewat https://.", "gagal");
+}
+
+</script>
+</body>
+</html>
